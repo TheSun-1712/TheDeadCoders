@@ -1,0 +1,5 @@
+{
+  "xgboost_calibrated_macro_f1": 0.994423,
+  "random_forest_macro_f1": 0.994293,
+  "logistic_regression_macro_f1": 0.928831
+}

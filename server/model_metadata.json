@@ -1,0 +1,37 @@
+{
+  "version": "ids-xgb-20260227133706",
+  "trained_at_utc": "2026-02-27T13:37:06.579389+00:00",
+  "data_file": "large_simulation_log.csv",
+  "num_samples": 11000,
+  "num_features": 57,
+  "feature_hash": "1b06a3ad4980f48b",
+  "classes": [
+    "Bots",
+    "Brute Force",
+    "DDoS",
+    "DoS",
+    "Normal Traffic",
+    "Port Scanning",
+    "Web Attacks"
+  ],
+  "metrics": {
+    "accuracy": 0.995,
+    "macro_f1": 0.994423,
+    "weighted_f1": 0.994996,
+    "cv_macro_f1_mean": 0.995107,
+    "cv_macro_f1_std": 0.000516
+  },
+  "benchmark": {
+    "xgboost_calibrated_macro_f1": 0.994423,
+    "random_forest_macro_f1": 0.994293,
+    "logistic_regression_macro_f1": 0.928831
+  },
+  "best_trees": 493,
+  "engineered_features": [
+    "feat_bytes_per_packet",
+    "feat_fwd_bwd_rate_ratio",
+    "feat_flow_iat_range",
+    "feat_packet_len_range",
+    "feat_packet_length_cv"
+  ]
+}

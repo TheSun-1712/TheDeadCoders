@@ -49,6 +49,8 @@ class TrafficLog(Base):
     traffic_volume = Column(String, nullable=True)
     login_behavior = Column(String, nullable=True)
     explanation = Column(Text, nullable=True)
+    feature_snapshot = Column(Text, nullable=True)
+    model_version = Column(String, nullable=True)
 
 class AutoBlocked(Base):
     """Stores incidents automatically blocked by the system"""
@@ -62,6 +64,7 @@ class AutoBlocked(Base):
     confidence = Column(Float)
     type = Column(String)
     action = Column(String, default="AUTO_BLOCKED")
+    model_version = Column(String, nullable=True)
 
 class ManualReview(Base):
     """Stores incidents sent to Admin Portal for manual review"""
@@ -89,6 +92,8 @@ class ManualReview(Base):
     failed_attempts = Column(Integer, nullable=True)
     traffic_volume = Column(String, nullable=True)
     login_behavior = Column(String, nullable=True)
+    feature_snapshot = Column(Text, nullable=True)
+    model_version = Column(String, nullable=True)
 
 class ChatSession(Base):
     """Stores a conversation session between user and AI"""

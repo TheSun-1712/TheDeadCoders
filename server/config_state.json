@@ -1,0 +1,13 @@
+{
+  "auto_block_threshold": 0.85,
+  "simulation_speed": 1.0,
+  "dynamic_threshold_enabled": true,
+  "min_threshold": 0.7,
+  "max_threshold": 0.99,
+  "model_noise_rate": 0.21,
+  "auto_resolve_pending_enabled": true,
+  "pending_auto_resolve_queue_trigger": 10,
+  "pending_auto_resolve_delta": 0.1,
+  "target_automation_min": 70.0,
+  "target_automation_max": 90.0
+}
