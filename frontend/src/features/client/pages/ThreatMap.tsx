@@ -139,25 +139,34 @@ const ThreatMap: React.FC = () => {
     const fetchThreatMap = async () => {
       try {
         const response = await apiClient.get<MapBatchResponse>("/threats/map/batches?batch_size=10&limit=200");
-        const parsedBatches = (response.data?.batches ?? []).map((batch) =>
-          batch
+        const parsedBatches = (response.data?.batches ?? []).map((batch) => {
+          const attacksInBatch = batch
             .filter((item) =>
               Number.isFinite(item.lat) &&
               Number.isFinite(item.lon) &&
               !(Number(item.lat) === 0 && Number(item.lon) === 0)
             )
             .map((item) => ({
-            id: item.id,
-            rawType: item.type,
-            type: getAttackType(item.type),
-            srcIp: item.src_ip,
-            country: item.country,
-            confidence: 0,
-            // Use exact backend coordinates (no client-side randomization).
-            from: [Number(item.lat), Number(item.lon)] as [number, number],
-            to: DEFENSE_HUB,
-          }))
-        );
+              id: item.id,
+              rawType: item.type,
+              type: getAttackType(item.type),
+              srcIp: item.src_ip,
+              country: item.country,
+              confidence: 0,
+              from: [Number(item.lat), Number(item.lon)] as [number, number],
+              to: DEFENSE_HUB,
+            }));
+
+          // Link to another point in the same batch for "p2p" style or decentralized look
+          return attacksInBatch.map((attack, index, array) => {
+            if (array.length > 1) {
+              // Target the next point in the array (circular)
+              const nextIndex = (index + 1) % array.length;
+              return { ...attack, to: array[nextIndex].from };
+            }
+            return attack; // If only one point, keep it targeting the DEFENSE_HUB
+          });
+        });
 
         // Always display the latest backend batch so map updates reflect new server data.
         if (parsedBatches.length > 0) {
