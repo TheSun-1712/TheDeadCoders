@@ -1,17 +1,49 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiClient } from '../../../api/client';
 import { Save, Gavel, AlertOctagon, RotateCcw } from 'lucide-react';
 
 const PolicyConfig = () => {
     const [threshold, setThreshold] = useState(0.95);
+    const [noiseRate, setNoiseRate] = useState(0.08);
+    const [defaultThreshold, setDefaultThreshold] = useState(0.95);
+    const [defaultNoiseRate, setDefaultNoiseRate] = useState(0.08);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+    useEffect(() => {
+        const fetchCurrent = async () => {
+            try {
+                const res = await apiClient.get('/config/current');
+                const current = Number(res?.data?.config?.auto_block_threshold);
+                const currentNoise = Number(res?.data?.config?.model_noise_rate);
+                if (!Number.isNaN(current) && current >= 0.0 && current <= 1.0) {
+                    setThreshold(current);
+                    setDefaultThreshold(current);
+                }
+                if (!Number.isNaN(currentNoise) && currentNoise >= 0.0 && currentNoise <= 0.5) {
+                    setNoiseRate(currentNoise);
+                    setDefaultNoiseRate(currentNoise);
+                }
+            } catch (error) {
+                console.error("Failed to fetch current config", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchCurrent();
+    }, []);
 
     const handleSave = async () => {
         setIsSaving(true);
         setMessage(null);
         try {
-            await apiClient.post(`/config/update?threshold=${threshold}`);
+            await apiClient.post('/config/update-body', {
+                threshold,
+                model_noise_rate: noiseRate
+            });
+            setDefaultThreshold(threshold);
+            setDefaultNoiseRate(noiseRate);
             setMessage({ text: 'Policy updated successfully.', type: 'success' });
         } catch (error) {
             console.error("Failed to update policy", error);
@@ -64,6 +96,28 @@ const PolicyConfig = () => {
                             </div>
                         </div>
 
+                        <div className="relative">
+                            <div className="flex justify-between mb-2">
+                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Simulation Noise Rate</label>
+                                <span className="text-xl font-bold text-blue-500 font-mono">{Math.round(noiseRate * 100)}%</span>
+                            </div>
+                            <p className="text-xs text-slate-500 mb-6">Injects controlled uncertainty so automation does not stay unrealistically perfect in simulation.</p>
+
+                            <input
+                                type="range"
+                                min="0.00"
+                                max="0.30"
+                                step="0.01"
+                                value={noiseRate}
+                                onChange={(e) => setNoiseRate(parseFloat(e.target.value))}
+                                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            />
+                            <div className="flex justify-between text-xs text-slate-400 mt-2">
+                                <span>Stable (0%)</span>
+                                <span>Noisy (30%)</span>
+                            </div>
+                        </div>
+
                         {message && (
                             <div className={`p-3 rounded text-sm ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                 {message.text}
@@ -72,14 +126,17 @@ const PolicyConfig = () => {
 
                         <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
                             <button
-                                onClick={() => setThreshold(0.95)}
+                                onClick={() => {
+                                    setThreshold(defaultThreshold);
+                                    setNoiseRate(defaultNoiseRate);
+                                }}
                                 className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200 dark:hover:bg-slate-700 font-medium transition-colors flex items-center gap-2"
                             >
                                 <RotateCcw className="w-4 h-4" /> Reset
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={isSaving}
+                                disabled={isSaving || isLoading}
                                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold shadow-lg shadow-blue-500/20 transition-all flex ml-auto items-center gap-2"
                             >
                                 <Save className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Commit Policy'}

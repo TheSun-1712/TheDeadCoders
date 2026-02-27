@@ -34,6 +34,13 @@ interface Attack {
   to: [number, number];
 }
 
+interface MapBatchResponse {
+  batch_size: number;
+  total_events: number;
+  total_batches: number;
+  batches: ThreatMapData[][];
+}
+
 function getAttackType(label: string): AttackType {
   const value = label.toLowerCase();
   if (value.includes("ddos")) return "ddos";
@@ -131,20 +138,33 @@ const ThreatMap: React.FC = () => {
   useEffect(() => {
     const fetchThreatMap = async () => {
       try {
-        const response = await apiClient.get<ThreatMapData[]>("/threats/map");
-        const liveAttacks = response.data
-          .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lon))
-          .map((item) => ({
+        const response = await apiClient.get<MapBatchResponse>("/threats/map/batches?batch_size=10&limit=200");
+        const parsedBatches = (response.data?.batches ?? []).map((batch) =>
+          batch
+            .filter((item) =>
+              Number.isFinite(item.lat) &&
+              Number.isFinite(item.lon) &&
+              !(Number(item.lat) === 0 && Number(item.lon) === 0)
+            )
+            .map((item) => ({
             id: item.id,
             rawType: item.type,
             type: getAttackType(item.type),
             srcIp: item.src_ip,
             country: item.country,
             confidence: 0,
-            from: [item.lat, item.lon] as [number, number],
+            // Use exact backend coordinates (no client-side randomization).
+            from: [Number(item.lat), Number(item.lon)] as [number, number],
             to: DEFENSE_HUB,
-          }));
-        setAttacks(liveAttacks);
+          }))
+        );
+
+        // Always display the latest backend batch so map updates reflect new server data.
+        if (parsedBatches.length > 0) {
+          setAttacks(parsedBatches[parsedBatches.length - 1]);
+        } else {
+          setAttacks([]);
+        }
       } catch (error) {
         console.error("Failed to fetch threat map data", error);
       }
@@ -221,19 +241,21 @@ const ThreatMap: React.FC = () => {
                   fillOpacity: 0.4,
                 }}
               />
-
-              <CircleMarker
-                center={attack.to}
-                radius={pulseRadius}
-                pathOptions={{
-                  color: attackColors[attack.type],
-                  fillColor: attackColors[attack.type],
-                  fillOpacity: 0.4,
-                }}
-              />
             </React.Fragment>
           );
         })}
+
+        {/* Render a single defense hub marker to avoid visual collapse at one point */}
+        <CircleMarker
+          center={DEFENSE_HUB}
+          radius={10}
+          pathOptions={{
+            color: "#22d3ee",
+            fillColor: "#22d3ee",
+            fillOpacity: 0.5,
+            weight: 2,
+          }}
+        />
       </MapContainer>
 
       {/* 🔹 Legend Bottom Right */}

@@ -5,6 +5,37 @@ export interface SystemHealth {
     automation_rate: string;
 }
 
+export interface OverviewMetrics {
+    status: "HEALTHY" | "DEGRADED";
+    traffic_processed: string;
+    traffic_change_percent: number;
+    traffic_bars_24h: number[];
+    system_health_score: number;
+    automation_rate: string;
+    automation_rate_value: number;
+    active_threats: number;
+    blocked_ips_24h: number;
+    avg_blocked_per_hour: number;
+    mean_time_to_respond_seconds: number;
+    severity_distribution: {
+        critical: number;
+        high: number;
+        medium: number;
+        low: number;
+    };
+    decision_velocity: Array<{
+        automated: number;
+        human: number;
+    }>;
+    escalated_count: number;
+    analyst_hours_saved: number;
+    false_positive_rate: number;
+    auto_block_threshold_percent: number;
+    review_threshold_percent: number;
+    db_latency_ms: number;
+    api_latency_ms: number;
+}
+
 export interface Packet {
     id: number;
     timestamp: string;

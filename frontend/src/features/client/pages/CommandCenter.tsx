@@ -1,11 +1,21 @@
 import { Radar, ShieldBan, Wand2, Timer, AlertOctagon, AlertTriangle } from 'lucide-react';
-import { useSystemHealth } from '../../../hooks/useSystemHealth';
 import { useLiveTraffic } from '../../../hooks/useLiveTraffic';
+import { useOverviewMetrics } from '../../../hooks/useOverviewMetrics';
 import clsx from 'clsx';
 
 const CommandCenter = () => {
-    const { health } = useSystemHealth();
+    const { metrics } = useOverviewMetrics();
     const { traffic } = useLiveTraffic();
+    const mtt = metrics?.mean_time_to_respond_seconds ?? 0;
+    const mttMinutes = Math.floor(mtt / 60);
+    const mttSeconds = mtt % 60;
+    const mttDisplay = `${mttMinutes}m ${String(mttSeconds).padStart(2, '0')}s`;
+    const autoProgress = Math.max(0, Math.min(100, metrics?.automation_rate_value ?? 0));
+    const mttProgress = Math.max(0, Math.min(100, 100 - (mtt / 300) * 100));
+    const severity = metrics?.severity_distribution ?? { critical: 0, high: 0, medium: 0, low: 0 };
+    const severityTotal = severity.critical + severity.high + severity.medium + severity.low;
+    const apiHealthy = (metrics?.api_latency_ms ?? 0) < 100;
+    const dbHealthy = (metrics?.db_latency_ms ?? 0) < 150;
 
     // Filter for only actioned items for the table
     const recentActions = traffic.filter(p => p.action !== 'MONITOR').slice(0, 5);
@@ -20,13 +30,13 @@ const CommandCenter = () => {
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Active Threats</p>
                     <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">1,204</h3>
+                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{metrics?.active_threats ?? 0}</h3>
                         <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded flex items-center">
-                            +12%
+                            {`${metrics?.traffic_change_percent ?? 0}%`}
                         </span>
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-700 h-1 mt-4 rounded-full overflow-hidden">
-                        <div className="bg-primary h-full rounded-full" style={{ width: '65%' }}></div>
+                        <div className="bg-primary h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, (metrics?.active_threats ?? 0) / 2))}%` }}></div>
                     </div>
                 </div>
 
@@ -36,13 +46,13 @@ const CommandCenter = () => {
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Blocked IPs (24h)</p>
                     <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">8,432</h3>
+                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{metrics?.blocked_ips_24h ?? 0}</h3>
                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
-                            Avg. 350/hr
+                            Avg. {metrics?.avg_blocked_per_hour ?? 0}/hr
                         </span>
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-700 h-1 mt-4 rounded-full overflow-hidden">
-                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: '88%' }}></div>
+                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, (metrics?.blocked_ips_24h ?? 0) / 2))}%` }}></div>
                     </div>
                 </div>
 
@@ -52,13 +62,13 @@ const CommandCenter = () => {
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Auto-Remediated</p>
                     <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{health?.automation_rate || '94.2%'}</h3>
+                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{metrics?.automation_rate ?? '...'}</h3>
                         <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded flex items-center">
-                            +2.1%
+                            Live
                         </span>
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-700 h-1 mt-4 rounded-full overflow-hidden">
-                        <div className="bg-primary h-full rounded-full" style={{ width: '94%' }}></div>
+                        <div className="bg-primary h-full rounded-full" style={{ width: `${autoProgress}%` }}></div>
                     </div>
                 </div>
 
@@ -68,13 +78,13 @@ const CommandCenter = () => {
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-1">Mean Time to Respond</p>
                     <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">1m 42s</h3>
+                        <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{mttDisplay}</h3>
                         <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded flex items-center">
-                            -15s
+                            Last 24h
                         </span>
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-700 h-1 mt-4 rounded-full overflow-hidden">
-                        <div className="bg-warning h-full rounded-full" style={{ width: '45%' }}></div>
+                        <div className="bg-warning h-full rounded-full" style={{ width: `${mttProgress}%` }}></div>
                     </div>
                 </div>
             </div>
@@ -98,7 +108,7 @@ const CommandCenter = () => {
                             <div className="absolute inset-0 rounded-full border-[16px] border-primary opacity-90" style={{ clipPath: 'polygon(0 0, 50% 0, 50% 50%, 0 50%)', transform: 'rotate(0deg)' }}></div>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-3xl font-bold text-slate-900 dark:text-white">Total</span>
-                                <span className="text-sm text-slate-500 dark:text-slate-400">142</span>
+                                <span className="text-sm text-slate-500 dark:text-slate-400">{severityTotal}</span>
                             </div>
                         </div>
 
@@ -110,8 +120,8 @@ const CommandCenter = () => {
                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Critical</span>
                                 </div>
                                 <div className="flex justify-between items-end">
-                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">12</span>
-                                    <span className="text-xs text-danger font-medium">+2 new</span>
+                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{severity.critical}</span>
+                                    <span className="text-xs text-danger font-medium">Last 24h</span>
                                 </div>
                             </div>
                             <div className="bg-slate-50 dark:bg-surface-darker p-3 rounded-lg border border-slate-100 dark:border-slate-700/50">
@@ -120,8 +130,8 @@ const CommandCenter = () => {
                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">High</span>
                                 </div>
                                 <div className="flex justify-between items-end">
-                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">28</span>
-                                    <span className="text-xs text-slate-500">-5 avg</span>
+                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{severity.high}</span>
+                                    <span className="text-xs text-slate-500">Last 24h</span>
                                 </div>
                             </div>
                             <div className="bg-slate-50 dark:bg-surface-darker p-3 rounded-lg border border-slate-100 dark:border-slate-700/50">
@@ -130,7 +140,7 @@ const CommandCenter = () => {
                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Medium</span>
                                 </div>
                                 <div className="flex justify-between items-end">
-                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">45</span>
+                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{severity.medium}</span>
                                 </div>
                             </div>
                             <div className="bg-slate-50 dark:bg-surface-darker p-3 rounded-lg border border-slate-100 dark:border-slate-700/50">
@@ -139,7 +149,7 @@ const CommandCenter = () => {
                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Low</span>
                                 </div>
                                 <div className="flex justify-between items-end">
-                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">57</span>
+                                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{severity.low}</span>
                                 </div>
                             </div>
                         </div>
@@ -159,22 +169,26 @@ const CommandCenter = () => {
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-bold text-slate-900 dark:text-white">API Gateway</h4>
-                                    <p className="text-xs text-emerald-500 font-medium">Online (14ms)</p>
+                                    <p className={clsx("text-xs font-medium", apiHealthy ? "text-emerald-500" : "text-warning")}>
+                                        {apiHealthy ? "Online" : "Slow"} ({metrics?.api_latency_ms ?? 0}ms)
+                                    </p>
                                 </div>
                             </div>
-                            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
+                            <div className={clsx("h-2 w-2 rounded-full", apiHealthy ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-warning shadow-[0_0_8px_rgba(245,158,11,0.6)]")}></div>
                         </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-surface-darker border border-slate-100 dark:border-slate-700/50 border-l-4 border-l-warning">
+                        <div className={clsx("flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-surface-darker border border-slate-100 dark:border-slate-700/50 border-l-4", dbHealthy ? "border-l-emerald-500" : "border-l-warning")}>
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-warning/10 rounded text-warning">
+                                <div className={clsx("p-2 rounded", dbHealthy ? "bg-emerald-500/10 text-emerald-500" : "bg-warning/10 text-warning")}>
                                     <AlertTriangle className="w-4 h-4" />
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-bold text-slate-900 dark:text-white">Database Cluster</h4>
-                                    <p className="text-xs text-warning font-medium">High Latency (240ms)</p>
+                                    <p className={clsx("text-xs font-medium", dbHealthy ? "text-emerald-500" : "text-warning")}>
+                                        {dbHealthy ? "Online" : "High Latency"} ({metrics?.db_latency_ms ?? 0}ms)
+                                    </p>
                                 </div>
                             </div>
-                            <div className="h-2 w-2 rounded-full bg-warning shadow-[0_0_8px_rgba(245,158,11,0.6)]"></div>
+                            <div className={clsx("h-2 w-2 rounded-full", dbHealthy ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-warning shadow-[0_0_8px_rgba(245,158,11,0.6)]")}></div>
                         </div>
                     </div>
                 </div>

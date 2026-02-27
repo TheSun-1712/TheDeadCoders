@@ -1,10 +1,16 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Activity, ShieldAlert, Zap, Radio, Globe } from 'lucide-react';
 import clsx from 'clsx';
-import { useSystemHealth } from '../../../hooks/useSystemHealth';
+import { useOverviewMetrics } from '../../../hooks/useOverviewMetrics';
 
 const Dashboard = () => {
-    const { health } = useSystemHealth();
+    const { metrics } = useOverviewMetrics();
+    const barData = metrics?.traffic_bars_24h ?? [];
+    const maxBar = Math.max(1, ...barData);
+    const barHeights = barData.map((v) => Math.max(8, Math.round((v / maxBar) * 100)));
+    const automationRate = metrics?.automation_rate_value ?? 0;
+    const trafficChange = metrics?.traffic_change_percent ?? 0;
+    const trafficChangeText = `${trafficChange >= 0 ? '+' : ''}${trafficChange.toFixed(1)}%`;
 
     return (
         <div className="relative min-h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-white">
@@ -25,7 +31,7 @@ const Dashboard = () => {
                         <div
                             className={clsx(
                                 "inline-flex items-center space-x-2 px-3 py-1 rounded-full border text-xs font-bold tracking-wider mb-2 glow-orange-red",
-                                health?.status === 'HEALTHY'
+                                metrics?.status === 'HEALTHY'
                                     ? "bg-primary/10 border-primary/30 text-primary"
                                     : "bg-accent-red/10 border-accent-red/30 text-accent-red"
                             )}
@@ -33,12 +39,12 @@ const Dashboard = () => {
                             <div
                                 className={clsx(
                                     "w-2 h-2 rounded-full",
-                                    health?.status === 'HEALTHY'
+                                    metrics?.status === 'HEALTHY'
                                         ? "bg-primary shadow-[0_0_8px_rgba(255,77,0,1)]"
                                         : "bg-accent-red"
                                 )}
                             />
-                            <span>SYSTEM STATUS: {health?.status || 'CONNECTING...'}</span>
+                            <span>SYSTEM STATUS: {metrics?.status || 'CONNECTING...'}</span>
                         </div>
 
                         <h1 className="text-4xl md:text-5xl font-bold leading-tight">
@@ -106,10 +112,10 @@ const Dashboard = () => {
                                     </h3>
                                     <div className="flex items-baseline mt-1 space-x-2">
                                         <span className="text-4xl font-bold">
-                                            {health ? health.traffic_processed : '...'}
+                                            {metrics ? metrics.traffic_processed : '...'}
                                         </span>
                                         <span className="text-sm font-medium text-primary">
-                                            +12%
+                                            {trafficChangeText}
                                         </span>
                                     </div>
                                 </div>
@@ -119,7 +125,7 @@ const Dashboard = () => {
                             </div>
 
                             <div className="h-12 w-full flex items-end justify-between gap-1 opacity-70">
-                                {[30, 50, 40, 70, 55, 45, 80, 60, 40, 30, 20, 45].map((h, i) => (
+                                {barHeights.map((h, i) => (
                                     <div key={i} className="w-1/12 bg-primary/30 rounded-t-sm" style={{ height: `${h}%` }}></div>
                                 ))}
                             </div>
@@ -138,7 +144,7 @@ const Dashboard = () => {
                                     </h3>
                                     <div className="flex items-baseline mt-1 space-x-2">
                                         <span className="text-4xl font-bold">
-                                            {health?.status === 'HEALTHY' ? '98%' : '75%'}
+                                            {metrics ? `${metrics.system_health_score}%` : '...'}
                                         </span>
                                         <span className="text-sm text-slate-500">Score</span>
                                     </div>
@@ -151,7 +157,7 @@ const Dashboard = () => {
                             <div className="w-full bg-gray-100 dark:bg-black/30 rounded-full h-2 overflow-hidden mt-6">
                                 <div
                                     className="bg-gradient-to-r from-accent-red to-primary h-full rounded-full"
-                                    style={{ width: health?.status === 'HEALTHY' ? '98%' : '75%' }}
+                                    style={{ width: `${metrics?.system_health_score ?? 0}%` }}
                                 ></div>
                             </div>
                         </div>
@@ -168,7 +174,7 @@ const Dashboard = () => {
                                 </h3>
                                 <div className="flex items-baseline mt-1 space-x-2">
                                     <span className="text-4xl font-bold">
-                                        {health ? health.automation_rate : '...'}
+                                        {metrics ? metrics.automation_rate : '...'}
                                     </span>
                                 </div>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-[140px]">
@@ -184,7 +190,7 @@ const Dashboard = () => {
                                     <path className="text-primary drop-shadow-[0_0_8px_rgba(255,77,0,0.5)]"
                                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                         fill="none" stroke="currentColor"
-                                        strokeDasharray="98.2, 100"
+                                        strokeDasharray={`${automationRate}, 100`}
                                         strokeLinecap="round"
                                         strokeWidth="3" />
                                 </svg>

@@ -23,7 +23,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <div className="h-16 flex items-center px-6 border-b border-slate-800">
                     <div className="flex items-center gap-2 text-orange-400 font-bold text-xl tracking-tighter">
                         <Shield className="w-6 h-6" />
-                        <span>SOAR<span className="text-slate-500 font-light">OPS</span></span>
+                        <span>SENTINEL<span className="text-slate-500 font-light">.AI</span></span>
                     </div>
                 </div>
 

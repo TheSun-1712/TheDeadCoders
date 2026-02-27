@@ -1,15 +1,40 @@
 import { ShieldCheck, Flag, TrendingUp, TrendingDown } from 'lucide-react';
-import { useSystemHealth } from '../../../hooks/useSystemHealth';
 import { useLiveTraffic } from '../../../hooks/useLiveTraffic';
+import { useOverviewMetrics } from '../../../hooks/useOverviewMetrics';
 import clsx from 'clsx';
 import type { Packet } from '../../../types';
 
 const AutomationStatus = () => {
-    const { health } = useSystemHealth();
+    const { metrics } = useOverviewMetrics();
     const { traffic } = useLiveTraffic();
 
     // Filter relevant actions
     const automatedActions = traffic.filter(p => p.action !== 'MONITOR');
+    const metricVelocity = metrics?.decision_velocity ?? Array.from({ length: 6 }, () => ({ automated: 0, human: 0 }));
+    const derivedVelocity = Array.from({ length: 6 }, () => ({ automated: 0, human: 0 }));
+    const nowMs = Date.now();
+    automatedActions.forEach((event) => {
+        const ts = new Date(event.timestamp).getTime();
+        if (Number.isNaN(ts)) return;
+        const hoursAgo = (nowMs - ts) / (1000 * 60 * 60);
+        if (hoursAgo < 0 || hoursAgo >= 24) return;
+        const idx = 5 - Math.floor(hoursAgo / 4);
+        if (idx < 0 || idx > 5) return;
+        if (event.action === 'AUTO_BLOCKED' || event.action === 'MANUAL_BLOCK') {
+            derivedVelocity[idx].automated += 1;
+        } else {
+            derivedVelocity[idx].human += 1;
+        }
+    });
+
+    const metricTotal = metricVelocity.reduce((acc, v) => acc + v.automated + v.human, 0);
+    const derivedTotal = derivedVelocity.reduce((acc, v) => acc + v.automated + v.human, 0);
+    const velocity = metricTotal > 0 ? metricVelocity : derivedVelocity;
+    const maxVelocity = Math.max(
+        1,
+        ...velocity.map((v) => Math.max(v.automated, v.human))
+    );
+    const automationRateValue = metrics?.automation_rate_value ?? 0;
 
     return (
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -23,12 +48,12 @@ const AutomationStatus = () => {
                     <div>
                         <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Auto-Block Confidence</div>
                         <div className="flex items-end gap-2">
-                            <span className="text-3xl font-bold text-slate-800 dark:text-white">95%</span>
+                            <span className="text-3xl font-bold text-slate-800 dark:text-white">{metrics ? `${metrics.auto_block_threshold_percent}%` : '...'}</span>
                             <span className="text-xs text-emerald-500 mb-1 font-medium">Active</span>
                         </div>
                     </div>
                     <div className="mt-4 w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-primary h-full rounded-full" style={{ width: '95%' }}></div>
+                        <div className="bg-primary h-full rounded-full" style={{ width: `${metrics?.auto_block_threshold_percent ?? 0}%` }}></div>
                     </div>
                     <div className="mt-2 text-xs text-slate-400">Strict threshold. Requires high fidelity IOC match.</div>
                 </div>
@@ -41,12 +66,12 @@ const AutomationStatus = () => {
                     <div>
                         <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Review Threshold</div>
                         <div className="flex items-end gap-2">
-                            <span className="text-3xl font-bold text-slate-800 dark:text-white">70%</span>
+                            <span className="text-3xl font-bold text-slate-800 dark:text-white">{metrics ? `${metrics.review_threshold_percent}%` : '...'}</span>
                             <span className="text-xs text-yellow-500 mb-1 font-medium">Flagged</span>
                         </div>
                     </div>
                     <div className="mt-4 w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-yellow-500 h-full rounded-full" style={{ width: '70%' }}></div>
+                        <div className="bg-yellow-500 h-full rounded-full" style={{ width: `${metrics?.review_threshold_percent ?? 0}%` }}></div>
                     </div>
                     <div className="mt-2 text-xs text-slate-400">Moderate confidence. Escalates to Tier 1 analyst.</div>
                 </div>
@@ -57,7 +82,7 @@ const AutomationStatus = () => {
                         <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Analyst Hours Saved</div>
                         <TrendingUp className="w-4 h-4 text-emerald-500" />
                     </div>
-                    <div className="text-3xl font-bold text-slate-800 dark:text-white mb-1">142h</div>
+                    <div className="text-3xl font-bold text-slate-800 dark:text-white mb-1">{metrics ? `${metrics.analyst_hours_saved}h` : '...'}</div>
                     <div className="text-xs text-slate-400">Based on 15m avg handling time per event.</div>
                 </div>
 
@@ -67,8 +92,8 @@ const AutomationStatus = () => {
                         <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">False Positive Rate</div>
                         <TrendingDown className="w-4 h-4 text-emerald-500" />
                     </div>
-                    <div className="text-3xl font-bold text-slate-800 dark:text-white mb-1">0.04%</div>
-                    <div className="text-xs text-slate-400">Last 24h - 3 overrides by human analysts.</div>
+                    <div className="text-3xl font-bold text-slate-800 dark:text-white mb-1">{metrics ? `${metrics.false_positive_rate}%` : '...'}</div>
+                    <div className="text-xs text-slate-400">Last 24h from resolved analyst decisions.</div>
                 </div>
             </div>
 
@@ -93,14 +118,17 @@ const AutomationStatus = () => {
                         </div>
                     </div>
                     <div className="flex-1 flex items-end gap-2 sm:gap-4 justify-between pt-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-                        {[0, 4, 8, 12, 16, 20].map((hour) => (
+                        {[0, 4, 8, 12, 16, 20].map((hour, idx) => (
                             <div key={hour} className="w-full flex flex-col gap-1 h-full justify-end group cursor-pointer relative">
-                                <div className="w-full bg-slate-600/80 hover:bg-slate-500 rounded-t-sm transition-all" style={{ height: `${Math.random() * 20 + 10}%` }}></div>
-                                <div className="w-full bg-primary hover:bg-blue-600 rounded-t-sm transition-all" style={{ height: `${Math.random() * 40 + 30}%` }}></div>
+                                <div className="w-full bg-slate-600/80 hover:bg-slate-500 rounded-t-sm transition-all" style={{ height: `${Math.max(10, (velocity[idx]?.human ?? 0) / maxVelocity * 100)}%` }}></div>
+                                <div className="w-full bg-primary hover:bg-blue-600 rounded-t-sm transition-all" style={{ height: `${Math.max(10, (velocity[idx]?.automated ?? 0) / maxVelocity * 100)}%` }}></div>
                                 <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-500">{hour.toString().padStart(2, '0')}:00</div>
                             </div>
                         ))}
                     </div>
+                    {metricTotal === 0 && derivedTotal === 0 && (
+                        <div className="text-xs text-slate-500 mt-8">No decision events yet. Waiting for traffic...</div>
+                    )}
                 </div>
 
                 {/* Donut / Ratio Chart */}
@@ -110,10 +138,10 @@ const AutomationStatus = () => {
                         <div className="relative w-40 h-40">
                             <svg className="w-full h-full" viewBox="0 0 100 100">
                                 <circle className="text-slate-200 dark:text-slate-800 stroke-current" cx="50" cy="50" fill="transparent" r="40" strokeWidth="8"></circle>
-                                <circle className="text-primary stroke-current transition-all duration-1000" cx="50" cy="50" fill="transparent" r="40" strokeDasharray="251.2" strokeDashoffset={`${251.2 * (1 - (parseFloat(health?.automation_rate || "98") / 100))}`} strokeLinecap="round" strokeWidth="8" transform="rotate(-90 50 50)"></circle>
+                                <circle className="text-primary stroke-current transition-all duration-1000" cx="50" cy="50" fill="transparent" r="40" strokeDasharray="251.2" strokeDashoffset={`${251.2 * (1 - (automationRateValue / 100))}`} strokeLinecap="round" strokeWidth="8" transform="rotate(-90 50 50)"></circle>
                             </svg>
                             <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
-                                <span className="text-3xl font-bold text-slate-800 dark:text-white">{health?.automation_rate || '98%'}</span>
+                                <span className="text-3xl font-bold text-slate-800 dark:text-white">{metrics ? metrics.automation_rate : '...'}</span>
                                 <span className="text-[10px] text-slate-500 uppercase tracking-widest">Automated</span>
                             </div>
                         </div>
@@ -121,11 +149,11 @@ const AutomationStatus = () => {
                     <div className="mt-4 grid grid-cols-2 gap-4 text-center z-10">
                         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
                             <div className="text-xs text-slate-500">Total Events</div>
-                            <div className="font-semibold text-slate-800 dark:text-white">{health ? health.traffic_processed : '...'}</div>
+                            <div className="font-semibold text-slate-800 dark:text-white">{metrics ? metrics.traffic_processed : '...'}</div>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
                             <div className="text-xs text-slate-500">Escalated</div>
-                            <div className="font-semibold text-slate-800 dark:text-white">1,488</div>
+                            <div className="font-semibold text-slate-800 dark:text-white">{metrics?.escalated_count ?? 0}</div>
                         </div>
                     </div>
                 </div>

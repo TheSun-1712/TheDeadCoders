@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Shield, LayoutDashboard, FileText, Gavel, History, Settings, Bell } from 'lucide-react';
 import clsx from 'clsx';
+import FloatingWidget from '../../../components/MasterAI/FloatingWidget';
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
     const location = useLocation();
@@ -21,7 +22,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
                 <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-2 text-blue-600 font-bold text-xl tracking-tighter">
                         <Shield className="w-6 h-6" />
-                        <span className="text-white">SOAR<span className="text-blue-400">.ai</span></span>
+                        <span className="text-white">SENTINEL<span className="text-blue-400">.AI</span></span>
                     </div>
                 </div>
 
@@ -91,6 +92,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
                     {children}
                 </div>
             </main>
+            <FloatingWidget />
         </div>
     );
 };
