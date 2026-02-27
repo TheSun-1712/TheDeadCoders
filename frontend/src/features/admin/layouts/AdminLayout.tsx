@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { Shield, LayoutDashboard, FileText, Gavel, History, Settings, Bell } from 'lucide-react';
 import clsx from 'clsx';
 import FloatingWidget from '../../../components/MasterAI/FloatingWidget';
+import { useAdminData } from '../hooks/useAdminData';
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
     const location = useLocation();
+    const { stats } = useAdminData();
 
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
@@ -77,7 +79,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
                         <div className="flex items-center gap-2">
                             <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
                             <span className="text-sm text-slate-500 dark:text-slate-400">Open Tickets:</span>
-                            <span className="text-lg font-bold text-white">12</span>
+                            <span className="text-lg font-bold text-white">{stats.openTickets}</span>
                         </div>
                         <div className="h-4 w-px bg-slate-200 dark:bg-slate-700"></div>
                         <button className="relative p-2 rounded-full hover:bg-slate-800 text-slate-300 transition-colors">

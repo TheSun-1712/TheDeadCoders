@@ -21,6 +21,57 @@ const attackColors = {
 
 type AttackType = keyof typeof attackColors;
 
+const ATTACK_COORDINATES: { from: [number, number]; to: [number, number] }[] = [
+  { from: [33.0, 65.0], to: [40.0, 45.0] },
+  { from: [41.0, 20.0], to: [47.3333, 13.3333] },
+  { from: [28.0, 3.0], to: [42.5, 1.6] },
+  { from: [-12.5, 18.5], to: [-34.0, -64.0] },
+  { from: [-27.0, 133.0], to: [40.5, 47.5] },
+  { from: [24.25, -76.0], to: [26.0, 50.55] },
+  { from: [24.0, 90.0], to: [13.1667, -59.5333] },
+  { from: [53.0, 28.0], to: [50.8333, 4.0] },
+  { from: [17.25, -88.75], to: [9.5, 2.25] },
+  { from: [27.5, 90.5], to: [-17.0, -65.0] },
+  { from: [44.0, 18.0], to: [-22.0, 24.0] },
+  { from: [-10.0, -55.0], to: [43.0, 25.0] },
+  { from: [13.0, -2.0], to: [-3.5, 30.0] },
+  { from: [13.0, 105.0], to: [6.0, 12.0] },
+  { from: [60.0, -95.0], to: [-30.0, -71.0] },
+  { from: [35.0, 105.0], to: [4.0, -72.0] },
+  { from: [10.0, -84.0], to: [45.1667, 15.5] },
+  { from: [21.5, -80.0], to: [49.75, 15.5] },
+  { from: [56.0, 10.0], to: [-2.0, -77.5] },
+  { from: [27.0, 30.0], to: [8.0, 38.0] },
+  { from: [64.0, 26.0], to: [46.0, 2.0] },
+  { from: [51.0, 9.0], to: [8.0, -2.0] },
+  { from: [39.0, 22.0], to: [15.5, -90.25] },
+  { from: [47.0, 20.0], to: [20.0, 77.0] },
+  { from: [-5.0, 120.0], to: [32.0, 53.0] },
+  { from: [25.0, 70.0], to: [36.0, 10.0] },
+  { from: [-15.0, -70.0], to: [55.0, 105.0] },
+  { from: [38.0, 68.0], to: [-25.0, 30.0] },
+  { from: [48.0, 30.0], to: [12.0, -15.0] },
+  { from: [62.0, 15.0], to: [5.0, 0.0] },
+  { from: [37.0, 127.0], to: [-20.0, -60.0] },
+  { from: [52.0, 20.0], to: [30.0, 115.0] },
+  { from: [45.0, 100.0], to: [18.0, -15.0] },
+  { from: [22.0, 78.0], to: [50.0, 5.0] },
+  { from: [-8.0, 115.0], to: [35.0, 139.0] },
+  { from: [40.0, 50.0], to: [32.0, 35.0] },
+  { from: [19.0, -99.0], to: [55.0, 37.0] },
+  { from: [-33.0, 18.0], to: [28.5, 77.0] },
+  { from: [61.0, 105.0], to: [1.3, 103.8] },
+  { from: [4.5, 114.5], to: [14.0, 108.0] },
+  { from: [15.0, 38.0], to: [-1.0, 36.0] },
+  { from: [23.0, 72.0], to: [7.0, 10.0] },
+  { from: [34.0, 69.0], to: [36.2, 137.0] },
+  { from: [25.0, 55.0], to: [39.9, -0.8] },
+  { from: [12.5, 124.0], to: [46.8, 8.2] },
+  { from: [3.1, 101.7], to: [41.9, 12.5] },
+  { from: [14.6, 120.9], to: [33.5, 126.9] },
+  { from: [16.0, 107.0], to: [23.7, 120.9] },
+];
+
 const DEFENSE_HUB: [number, number] = [20, 0];
 
 interface Attack {
@@ -34,11 +85,25 @@ interface Attack {
   to: [number, number];
 }
 
-interface MapBatchResponse {
-  batch_size: number;
-  total_events: number;
-  total_batches: number;
-  batches: ThreatMapData[][];
+/* 📊 5 Functions for Attack Distribution */
+function getTotalAttacks(): number {
+  return Math.floor(Math.random() * 15) + 10; // Randomly 10-25 attacks
+}
+
+function getDDoSCount(total: number): number {
+  return Math.floor(total * 0.4);
+}
+
+function getDoSCount(total: number): number {
+  return Math.floor(total * 0.3);
+}
+
+function getBruteForceCount(total: number): number {
+  return Math.floor(total * 0.2);
+}
+
+function getBotCount(total: number, ddos: number, dos: number, brute: number): number {
+  return total - (ddos + dos + brute);
 }
 
 function getAttackType(label: string): AttackType {
@@ -94,7 +159,7 @@ function TravelingDot({ path, color }: { path: [number, number][]; color: string
   useEffect(() => {
     let frame: number;
     const animate = () => {
-      setPosition((prev) => (prev + 0.5) % path.length);
+      setPosition((prev) => (prev + 0.2) % path.length);
       frame = requestAnimationFrame(animate);
     };
     animate();
@@ -138,44 +203,39 @@ const ThreatMap: React.FC = () => {
   useEffect(() => {
     const fetchThreatMap = async () => {
       try {
-        const response = await apiClient.get<MapBatchResponse>("/threats/map/batches?batch_size=10&limit=200");
-        const parsedBatches = (response.data?.batches ?? []).map((batch) => {
-          const attacksInBatch = batch
-            .filter((item) =>
-              Number.isFinite(item.lat) &&
-              Number.isFinite(item.lon) &&
-              !(Number(item.lat) === 0 && Number(item.lon) === 0)
-            )
-            .map((item) => ({
-              id: item.id,
-              rawType: item.type,
-              type: getAttackType(item.type),
-              srcIp: item.src_ip,
-              country: item.country,
-              confidence: 0,
-              from: [Number(item.lat), Number(item.lon)] as [number, number],
-              to: DEFENSE_HUB,
-            }));
+        const total = getTotalAttacks();
+        const ddosCount = getDDoSCount(total);
+        const dosCount = getDoSCount(total);
+        const bruteCount = getBruteForceCount(total);
+        const botCount = getBotCount(total, ddosCount, dosCount, bruteCount);
 
-          // Link to another point in the same batch for "p2p" style or decentralized look
-          return attacksInBatch.map((attack, index, array) => {
-            if (array.length > 1) {
-              // Target the next point in the array (circular)
-              const nextIndex = (index + 1) % array.length;
-              return { ...attack, to: array[nextIndex].from };
-            }
-            return attack; // If only one point, keep it targeting the DEFENSE_HUB
-          });
+        const types: AttackType[] = [
+          ...Array(ddosCount).fill("ddos"),
+          ...Array(dosCount).fill("dos"),
+          ...Array(bruteCount).fill("brute"),
+          ...Array(botCount).fill("bot"),
+        ];
+
+        // Shuffle coordinates to get random variety
+        const shuffledCoords = [...ATTACK_COORDINATES].sort(() => Math.random() - 0.5);
+
+        const newAttacks: Attack[] = types.map((type, i) => {
+          const coords = shuffledCoords[i % shuffledCoords.length];
+          return {
+            id: Date.now() + i,
+            rawType: type,
+            type: type,
+            srcIp: `192.168.1.${Math.floor(Math.random() * 255)}`,
+            country: "Unknown",
+            confidence: 0.8 + Math.random() * 0.2,
+            from: coords.from,
+            to: coords.to,
+          };
         });
 
-        // Always display the latest backend batch so map updates reflect new server data.
-        if (parsedBatches.length > 0) {
-          setAttacks(parsedBatches[parsedBatches.length - 1]);
-        } else {
-          setAttacks([]);
-        }
+        setAttacks(newAttacks);
       } catch (error) {
-        console.error("Failed to fetch threat map data", error);
+        console.error("Failed to generate dynamic threat map data", error);
       }
     };
 

@@ -32,14 +32,38 @@ export const useAdminData = () => {
     useEffect(() => {
         fetchData();
         const interval = setInterval(fetchData, 5000); // Poll every 5s
-        return () => clearInterval(interval);
+        const handleIncidentResolved = (event: Event) => {
+            const customEvent = event as CustomEvent<{ id?: number }>;
+            const resolvedId = customEvent.detail?.id;
+
+            if (typeof resolvedId === 'number') {
+                setPendingIncidents(prev => {
+                    const next = prev.filter(i => i.id !== resolvedId);
+                    setStats(current => ({ ...current, openTickets: next.length }));
+                    return next;
+                });
+            }
+
+            fetchData();
+        };
+
+        window.addEventListener('admin:incident-resolved', handleIncidentResolved);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('admin:incident-resolved', handleIncidentResolved);
+        };
     }, []);
 
     const resolveIncident = async (id: number, action: 'BLOCK' | 'IGNORE') => {
         try {
             await apiClient.post(`/incidents/${id}/resolve`, { action });
             // Optimistic update
-            setPendingIncidents(prev => prev.filter(i => i.id !== id));
+            setPendingIncidents(prev => {
+                const next = prev.filter(i => i.id !== id);
+                setStats(current => ({ ...current, openTickets: next.length }));
+                return next;
+            });
             fetchData(); // Refresh to be sure
         } catch (error) {
             console.error("Failed to resolve incident:", error);

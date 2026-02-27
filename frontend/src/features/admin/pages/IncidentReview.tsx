@@ -5,12 +5,46 @@ import type { Packet } from '../../../types';
 import { ShieldAlert, Activity, MapPin, Server, User, ArrowLeft, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 
+const COUNTRY_COORDS: Record<string, [number, number]> = {
+    USA: [37.0902, -95.7129],
+    China: [35.8617, 104.1954],
+    Russia: [61.524, 105.3188],
+    Germany: [51.1657, 10.4515],
+    Brazil: [-14.235, -51.9253],
+    India: [20.5937, 78.9629],
+    "North Korea": [40.3399, 127.5101],
+    Unknown: [0, 0],
+};
+
+const hasNumber = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value);
+
+const getEstimatedGeo = (packet: Packet) => {
+    const lat = (packet as Partial<Packet>).lat;
+    const lon = (packet as Partial<Packet>).lon;
+    const hasDirectGeo = hasNumber(lat) && hasNumber(lon) && !(lat === 0 && lon === 0);
+    if (hasDirectGeo) {
+        return { lat, lon, estimated: false };
+    }
+
+    const [baseLat, baseLon] = COUNTRY_COORDS[packet.country] ?? COUNTRY_COORDS.Unknown;
+    const ipParts = packet.src_ip.split('.').map(Number).filter((part) => Number.isFinite(part));
+    const seed = ipParts.reduce((sum, part, idx) => sum + (part * (idx + 13)), 0);
+    const latOffset = (((seed % 200) - 100) / 100) * 0.35;
+    const lonOffset = ((((seed * 7) % 200) - 100) / 100) * 0.65;
+    const estimatedLat = Math.max(-90, Math.min(90, baseLat + latOffset));
+    const estimatedLon = Math.max(-180, Math.min(180, baseLon + lonOffset));
+
+    return { lat: estimatedLat, lon: estimatedLon, estimated: true };
+};
+
 const IncidentReview = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [incident, setIncident] = useState<Packet | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isResolving, setIsResolving] = useState(false);
+    const geo = incident ? getEstimatedGeo(incident) : null;
 
     useEffect(() => {
         const fetchIncident = async () => {
@@ -33,6 +67,9 @@ const IncidentReview = () => {
         setIsResolving(true);
         try {
             await apiClient.post(`/incidents/${incident.id}/resolve`, { action });
+            window.dispatchEvent(new CustomEvent('admin:incident-resolved', {
+                detail: { id: incident.id, action },
+            }));
             navigate('/admin/dashboard');
         } catch (error) {
             console.error("Failed to resolve", error);
@@ -108,7 +145,9 @@ const IncidentReview = () => {
                             <label className="text-xs text-slate-400 block mb-1">Geo-Location</label>
                             <div className="h-32 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center relative overflow-hidden">
                                 <MapPin className="text-slate-400" />
-                                <span className="absolute bottom-2 left-2 text-xs font-mono text-slate-500">Lat: {incident.lat}, Lon: {incident.lon}</span>
+                                <span className="absolute bottom-2 left-2 text-xs font-mono text-slate-500">
+                                    Lat: {geo?.lat.toFixed(4)}, Lon: {geo?.lon.toFixed(4)}{geo?.estimated ? ' (estimated from IP/country)' : ''}
+                                </span>
                             </div>
                         </div>
                     </div>
