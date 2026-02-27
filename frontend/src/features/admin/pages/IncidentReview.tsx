@@ -74,66 +74,10 @@ const IncidentReview = () => {
 
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
                 {/* Left Sidebar: Context */}
-                <aside className="w-full lg:w-80 bg-white dark:bg-[#151b29] border-r border-slate-200 dark:border-slate-800 overflow-y-auto p-6 shrink-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+                <aside className="w-full lg:w-80 bg-white dark:bg-[#151b29] border-r border-slate-200 dark:border-slate-800 overflow-y-auto p-6 shrink-0">
                     <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Context Data</h3>
 
                     <div className="space-y-6">
-                        {/* Traffic Volume */}
-                        <div>
-                            <label className="text-xs text-slate-400 block mb-1">Traffic Volume</label>
-                            <div className="flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-slate-400" />
-                                <span className={clsx(
-                                    "text-sm font-bold px-2 py-0.5 rounded",
-                                    incident.traffic_volume === 'High' ? "bg-red-500/10 text-red-500" :
-                                        incident.traffic_volume === 'Medium' ? "bg-amber-500/10 text-amber-500" :
-                                            "bg-emerald-500/10 text-emerald-500"
-                                )}>
-                                    {incident.traffic_volume || 'Normal'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Burst Score */}
-                        <div>
-                            <label className="text-xs text-slate-400 block mb-1">Burst Score</label>
-                            <div className="flex items-center gap-2">
-                                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden flex-1">
-                                    <div className={clsx("h-full", (incident.burst_score || 0) > 3 ? "bg-red-500" : (incident.burst_score || 0) > 1.5 ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${Math.min(((incident.burst_score || 0) / 5) * 100, 100)}%` }}></div>
-                                </div>
-                                <span className="text-sm font-mono font-bold dark:text-white">{incident.burst_score || 0}</span>
-                            </div>
-                            <p className="text-[10px] text-slate-500 mt-1">
-                                {(incident.burst_score || 0) < 1.5 ? "Normal Behavior" : "Suspicious Spikes Detected"}
-                            </p>
-                        </div>
-
-                        {/* Failed Attempts */}
-                        <div>
-                            <label className="text-xs text-slate-400 block mb-1">Failed Attempts</label>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-mono font-bold dark:text-white">{incident.failed_attempts || 0}</span>
-                                <span className={clsx(
-                                    "text-[10px] px-1.5 py-0.5 rounded uppercase font-bold",
-                                    (incident.failed_attempts || 0) > 20 ? "bg-red-100 text-red-600" :
-                                        (incident.failed_attempts || 0) > 5 ? "bg-amber-100 text-amber-600" : "bg-emerald-100 text-emerald-600"
-                                )}>
-                                    {(incident.failed_attempts || 0) > 20 ? "Critical" : (incident.failed_attempts || 0) > 5 ? "Suspicious" : "Normal"}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Login Behavior */}
-                        <div>
-                            <label className="text-xs text-slate-400 block mb-1">Login Behavior</label>
-                            <div className="flex items-center gap-2">
-                                <User className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm font-medium dark:text-white">{incident.login_behavior || 'Normal'}</span>
-                            </div>
-                        </div>
-
-                        <hr className="border-slate-100 dark:border-slate-800" />
-
                         <div>
                             <label className="text-xs text-slate-400 block mb-1">Source IP</label>
                             <div className="flex items-center gap-3">
@@ -159,16 +103,6 @@ const IncidentReview = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {incident.target_username && (
-                            <div className="bg-red-50 dark:bg-red-900/10 p-3 rounded border border-red-100 dark:border-red-900/20">
-                                <label className="text-xs text-red-500 font-bold block mb-1">Targeted Account</label>
-                                <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-mono text-sm">
-                                    <User className="w-4 h-4" />
-                                    {incident.target_username}
-                                </div>
-                            </div>
-                        )}
 
                         <div>
                             <label className="text-xs text-slate-400 block mb-1">Geo-Location</label>
@@ -209,13 +143,7 @@ const IncidentReview = () => {
                             <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-lg">
                                 <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
                                     <ShieldAlert className="text-amber-400" />
-                                    Recommended Action:
-                                    <span className="text-amber-300">
-                                        {incident.type.includes('Brute Force') && incident.target_username ? ` Lock Account '${incident.target_username}' & Block IP` :
-                                            incident.type.includes('Bot') ? ` Block IP & Rate Limit` :
-                                                incident.type.includes('Port') ? ` Block IP & Close Port ${incident.destination_port}` :
-                                                    " Block Source IP"}
-                                    </span>
+                                    Recommended Action: Block Source IP
                                 </h3>
                                 <div className="flex flex-wrap gap-4">
                                     <button
@@ -224,10 +152,7 @@ const IncidentReview = () => {
                                         className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
                                     >
                                         <CheckCircle className="w-5 h-5" />
-                                        {isResolving ? 'Processing...' :
-                                            incident.type.includes('Brute Force') ? 'Lock Account & Block' :
-                                                incident.type.includes('Bot') ? 'Block & Rate Limit' :
-                                                    'Approve Block'}
+                                        {isResolving ? 'Processing...' : 'Approve Block'}
                                     </button>
                                     <button
                                         onClick={() => handleAction('IGNORE')}
