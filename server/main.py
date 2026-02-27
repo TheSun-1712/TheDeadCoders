@@ -10,6 +10,7 @@ import asyncio
 from datetime import datetime
 import os
 import threading
+from typing import Optional
 
 # --- CONFIGURATION ---
 MODEL_FILE = 'multiclass_xgboost_ids.joblib'
@@ -45,7 +46,10 @@ class SystemState:
         }
         self.config = {
             "auto_block_threshold": 0.95, # 95% confidence
-            "simulation_speed": 1.0       # Seconds per packet
+            "simulation_speed": 1.0,       # Seconds per packet
+            "dynamic_threshold_enabled": True,
+            "min_threshold": 0.85,
+            "max_threshold": 0.99
         }
         self.is_running = True
 
@@ -55,6 +59,7 @@ state = SystemState()
 print("Loading AI Models...")
 model = joblib.load(MODEL_FILE)
 label_encoder = joblib.load(LABEL_ENCODER_FILE)
+scaler = joblib.load('scaler.joblib') if os.path.exists('scaler.joblib') else None
 with open(FEATURE_FILE, 'r') as f:
     feature_columns = json.load(f)
 
@@ -94,7 +99,20 @@ def traffic_simulator():
                 pred_numeric = model.predict(features)[0]
                 pred_text = label_encoder.inverse_transform([pred_numeric])[0]
                 
-                # 3. Enrich Data (Fake Metadata)
+                # Dynamic Thresholding Adjustment
+                current_threshold = state.config["auto_block_threshold"]
+                if state.config["dynamic_threshold_enabled"]:
+                    # Increase threshold if system is degraded (too many pending reviews)
+                    pending_count = db.query(ManualReview).filter(ManualReview.status == "PENDING").count()
+                    if pending_count > 15:
+                        current_threshold = min(state.config["max_threshold"], current_threshold + 0.01)
+                    elif pending_count < 5:
+                        current_threshold = max(state.config["min_threshold"], current_threshold - 0.01)
+                    state.config["auto_block_threshold"] = round(current_threshold, 2)
+
+                # Mock SHAP Explanation
+                top_features = features.iloc[0].sort_values(ascending=False).head(3).index.tolist()
+                explanation = f"Top contributing features: {', '.join(top_features)}"
                 fake_ip = f"192.168.1.{random.randint(10, 200)}"
                 fake_country = random.choice(list(COUNTRY_COORDS.keys()))
                 timestamp = datetime.now() # Use datetime object for DB
@@ -216,11 +234,13 @@ def traffic_simulator():
                                 burst_score=burst_score,
                                 failed_attempts=failed_attempts,
                                 traffic_volume=traffic_volume,
-                                login_behavior=login_behavior
+                                login_behavior=login_behavior,
+                                explanation=explanation
                             )
                             db.add(manual_entry)
 
                 # Save Traffic Log
+                traffic_log.explanation = explanation
                 db.add(traffic_log)
                 db.commit()
 
@@ -289,6 +309,7 @@ def get_pending_incidents(db: Session = Depends(get_db)):
 class ActionRequest(BaseModel):
     action: str # "BLOCK" or "IGNORE"
     analyst_id: str = "admin_user"
+    is_correct: Optional[int] = 1 # 1 = Correct, 0 = False Positive
 
 @app.post("/api/incidents/{packet_id}/resolve")
 def resolve_incident(packet_id: int, req: ActionRequest, db: Session = Depends(get_db)):
@@ -304,6 +325,7 @@ def resolve_incident(packet_id: int, req: ActionRequest, db: Session = Depends(g
     incident.action_taken = "MANUAL_BLOCK" if req.action == "BLOCK" else "FALSE_POSITIVE"
     incident.analyst_id = req.analyst_id
     incident.resolved_at = datetime.utcnow()
+    incident.is_correct = req.is_correct
     
     # Update Stats
     if req.action == "BLOCK":

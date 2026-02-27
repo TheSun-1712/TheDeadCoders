@@ -7,7 +7,7 @@ import os
 
 # --- CONFIGURATION ---
 DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "Aish2003")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "Aish@2003")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "idsdashboard")
@@ -48,6 +48,7 @@ class TrafficLog(Base):
     failed_attempts = Column(Integer, nullable=True)
     traffic_volume = Column(String, nullable=True)
     login_behavior = Column(String, nullable=True)
+    explanation = Column(Text, nullable=True)
 
 class AutoBlocked(Base):
     """Stores incidents automatically blocked by the system"""
@@ -79,6 +80,8 @@ class ManualReview(Base):
     action_taken = Column(String, nullable=True) # "MANUAL_BLOCK", "FALSE_POSITIVE"
     analyst_id = Column(String, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
+    is_correct = Column(Integer, default=1) # 1 = Correct, 0 = False Positive, -1 = Incorrect Type
+    explanation = Column(Text, nullable=True) # SHAP or LIME explanation string
 
     # Context Data Enhancements
     target_username = Column(String, nullable=True)
