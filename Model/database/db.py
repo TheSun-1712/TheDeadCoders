@@ -6,7 +6,7 @@ DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "database": os.getenv("DB_NAME", "idsdashboard"),
     "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", "Aish2003"),
+    "password": os.getenv("DB_PASSWORD", "Aish@2003"),
     "port": os.getenv("DB_PORT", "5432")
 }
 
