@@ -303,7 +303,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="mt-2 md:mt-0">
-                        © 2024 Enterprise Security Operations. Unauthorized access is prohibited.
+                        © 2024 Sentinel AI. Unauthorized access is prohibited.
                     </div>
                 </div>
 

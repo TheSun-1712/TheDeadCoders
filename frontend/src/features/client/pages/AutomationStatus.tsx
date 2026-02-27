@@ -1,35 +1,72 @@
+import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Flag, TrendingUp, TrendingDown } from 'lucide-react';
 import { useLiveTraffic } from '../../../hooks/useLiveTraffic';
 import { useOverviewMetrics } from '../../../hooks/useOverviewMetrics';
 import clsx from 'clsx';
 import type { Packet } from '../../../types';
 
+const VELOCITY_BUCKETS = 6;
+const VELOCITY_BUCKET_MINUTES = 5;
+const VELOCITY_WINDOW_MS = VELOCITY_BUCKETS * VELOCITY_BUCKET_MINUTES * 60 * 1000;
+
+type VelocityPoint = { automated: number; human: number };
+type BufferedEvent = { key: string; timestampMs: number; action: Packet['action'] };
+
 const AutomationStatus = () => {
     const { metrics } = useOverviewMetrics();
     const { traffic } = useLiveTraffic();
+    const [velocity, setVelocity] = useState<VelocityPoint[]>(() =>
+        Array.from({ length: VELOCITY_BUCKETS }, () => ({ automated: 0, human: 0 }))
+    );
+    const bufferedEventsRef = useRef<BufferedEvent[]>([]);
+    const seenEventKeysRef = useRef<Set<string>>(new Set());
 
     // Filter relevant actions
     const automatedActions = traffic.filter(p => p.action !== 'MONITOR');
-    const metricVelocity = metrics?.decision_velocity ?? Array.from({ length: 6 }, () => ({ automated: 0, human: 0 }));
-    const derivedVelocity = Array.from({ length: 6 }, () => ({ automated: 0, human: 0 }));
-    const nowMs = Date.now();
-    automatedActions.forEach((event) => {
-        const ts = new Date(event.timestamp).getTime();
-        if (Number.isNaN(ts)) return;
-        const hoursAgo = (nowMs - ts) / (1000 * 60 * 60);
-        if (hoursAgo < 0 || hoursAgo >= 24) return;
-        const idx = 5 - Math.floor(hoursAgo / 4);
-        if (idx < 0 || idx > 5) return;
-        if (event.action === 'AUTO_BLOCKED' || event.action === 'MANUAL_BLOCK') {
-            derivedVelocity[idx].automated += 1;
-        } else {
-            derivedVelocity[idx].human += 1;
-        }
-    });
+    const rebuildVelocity = () => {
+        const nowMs = Date.now();
+        const windowStart = nowMs - VELOCITY_WINDOW_MS;
 
-    const metricTotal = metricVelocity.reduce((acc, v) => acc + v.automated + v.human, 0);
-    const derivedTotal = derivedVelocity.reduce((acc, v) => acc + v.automated + v.human, 0);
-    const velocity = metricTotal > 0 ? metricVelocity : derivedVelocity;
+        bufferedEventsRef.current = bufferedEventsRef.current.filter((event) => event.timestampMs >= windowStart);
+        seenEventKeysRef.current = new Set(bufferedEventsRef.current.map((event) => event.key));
+
+        const next = Array.from({ length: VELOCITY_BUCKETS }, () => ({ automated: 0, human: 0 }));
+        bufferedEventsRef.current.forEach((event) => {
+            const minutesAgo = (nowMs - event.timestampMs) / (1000 * 60);
+            if (minutesAgo < 0 || minutesAgo >= VELOCITY_BUCKETS * VELOCITY_BUCKET_MINUTES) return;
+            const idx = VELOCITY_BUCKETS - 1 - Math.floor(minutesAgo / VELOCITY_BUCKET_MINUTES);
+            if (idx < 0 || idx >= VELOCITY_BUCKETS) return;
+            if (event.action === 'AUTO_BLOCKED' || event.action === 'MANUAL_BLOCK') {
+                next[idx].automated += 1;
+            } else {
+                next[idx].human += 1;
+            }
+        });
+        setVelocity(next);
+    };
+
+    useEffect(() => {
+        automatedActions.forEach((event) => {
+            const ts = new Date(event.timestamp).getTime();
+            if (Number.isNaN(ts)) return;
+            const key = `${event.timestamp}-${event.src_ip}-${event.type}-${event.action}`;
+            if (seenEventKeysRef.current.has(key)) return;
+            seenEventKeysRef.current.add(key);
+            bufferedEventsRef.current.push({
+                key,
+                timestampMs: ts,
+                action: event.action,
+            });
+        });
+
+        rebuildVelocity();
+    }, [automatedActions]);
+
+    useEffect(() => {
+        const interval = setInterval(rebuildVelocity, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
     const maxVelocity = Math.max(
         1,
         ...velocity.map((v) => Math.max(v.automated, v.human))
@@ -118,15 +155,15 @@ const AutomationStatus = () => {
                         </div>
                     </div>
                     <div className="flex-1 flex items-end gap-2 sm:gap-4 justify-between pt-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-                        {[0, 4, 8, 12, 16, 20].map((hour, idx) => (
-                            <div key={hour} className="w-full flex flex-col gap-1 h-full justify-end group cursor-pointer relative">
+                        {[25, 20, 15, 10, 5, 0].map((minute, idx) => (
+                            <div key={minute} className="w-full flex flex-col gap-1 h-full justify-end group cursor-pointer relative">
                                 <div className="w-full bg-slate-600/80 hover:bg-slate-500 rounded-t-sm transition-all" style={{ height: `${Math.max(10, (velocity[idx]?.human ?? 0) / maxVelocity * 100)}%` }}></div>
                                 <div className="w-full bg-primary hover:bg-blue-600 rounded-t-sm transition-all" style={{ height: `${Math.max(10, (velocity[idx]?.automated ?? 0) / maxVelocity * 100)}%` }}></div>
-                                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-500">{hour.toString().padStart(2, '0')}:00</div>
+                                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-500">{minute === 0 ? 'now' : `${minute}m`}</div>
                             </div>
                         ))}
                     </div>
-                    {metricTotal === 0 && derivedTotal === 0 && (
+                    {velocity.every((v) => v.automated === 0 && v.human === 0) && (
                         <div className="text-xs text-slate-500 mt-8">No decision events yet. Waiting for traffic...</div>
                     )}
                 </div>

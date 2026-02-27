@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, LayoutDashboard, FileText, Gavel, History, Settings, Bell } from 'lucide-react';
+import { Shield, LayoutDashboard, FileText, Gavel, History, Settings, Bell, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 import FloatingWidget from '../../../components/MasterAI/FloatingWidget';
 import { useAdminData } from '../hooks/useAdminData';
 
-const AdminLayout = ({ children }: { children: React.ReactNode }) => {
+const AdminLayout = ({ children, onLogout }: { children: React.ReactNode; onLogout: () => void }) => {
     const location = useLocation();
     const { stats } = useAdminData();
 
@@ -50,7 +50,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
                     <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
                         <img
                             src="https://lh3.googleusercontent.com/aida-public/AB6AXuCn02apqPNqWYfW-6_BjDyJcip0quihU29GMYP6wIwC4AFFEKfzr1oRhhPyGGoAYSkcVAR0X8icAFTuvKnrDp67SzAAyFHrXol4ywwSs0c5-34Lx6ehpjg2-QsPgvEjHmfyI96WRIsvXqtsAqrYdBrBXzZ6og4serHMwznGqfpY0Fi1DmTg7XW6W2ftgbjHPvF1GwpjtZ2HPtaBtW4FjhUYqSuj4BkXnvdBpFXPUpHmUmexRvhtosPtA4P3EPYuNMEOwOQsRb8c6eWA"
@@ -62,6 +62,13 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
                             <p className="text-xs text-emerald-500 truncate">● Online</p>
                         </div>
                     </div>
+                    <button
+                        onClick={onLogout}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-sm"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                    </button>
                 </div>
             </aside>
 

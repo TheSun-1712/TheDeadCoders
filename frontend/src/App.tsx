@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Landing Page
@@ -20,8 +21,43 @@ import DecisionTimeline from './features/admin/pages/DecisionTimeline';
 import ComplianceReports from './features/admin/pages/ComplianceReports';
 import IncidentsPage from './features/admin/pages/IncidentsPage';
 import SettingsPage from './features/admin/pages/SettingsPage';
+import AdminLogin from './features/admin/pages/AdminLogin';
+import { apiClient } from './api/client';
+import { applyAdminToken, initializeAdminSession } from './features/admin/auth/adminSession';
 
 function App() {
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [isAdminAuthLoading, setIsAdminAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const token = initializeAdminSession();
+    if (!token) {
+      setIsAdminAuthLoading(false);
+      return;
+    }
+
+    apiClient.get('/auth/admin/me')
+      .then(() => setIsAdminAuthenticated(true))
+      .catch(() => {
+        applyAdminToken(null);
+        setIsAdminAuthenticated(false);
+      })
+      .finally(() => setIsAdminAuthLoading(false));
+  }, []);
+
+  const handleAdminAuthSuccess = () => {
+    setIsAdminAuthenticated(true);
+  };
+
+  const handleAdminLogout = () => {
+    applyAdminToken(null);
+    setIsAdminAuthenticated(false);
+  };
+
+  if (isAdminAuthLoading) {
+    return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <BrowserRouter>
       <Routes>
@@ -43,19 +79,28 @@ function App() {
         } />
 
         {/* Admin Portal Routes */}
+        <Route path="/admin/login" element={
+          isAdminAuthenticated
+            ? <Navigate to="/admin/dashboard" replace />
+            : <AdminLogin onAuthSuccess={handleAdminAuthSuccess} />
+        } />
         <Route path="/admin/*" element={
-          <AdminLayout>
-            <Routes>
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="incidents/review/:id" element={<IncidentReview />} />
-              <Route path="incidents" element={<IncidentsPage />} />
-              <Route path="compliance" element={<ComplianceReports />} />
-              <Route path="policy" element={<PolicyConfig />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="timeline" element={<DecisionTimeline />} />
-              <Route path="*" element={<Navigate to="dashboard" replace />} />
-            </Routes>
-          </AdminLayout>
+          isAdminAuthenticated ? (
+            <AdminLayout onLogout={handleAdminLogout}>
+              <Routes>
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="incidents/review/:id" element={<IncidentReview />} />
+                <Route path="incidents" element={<IncidentsPage />} />
+                <Route path="compliance" element={<ComplianceReports />} />
+                <Route path="policy" element={<PolicyConfig />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="timeline" element={<DecisionTimeline />} />
+                <Route path="*" element={<Navigate to="dashboard" replace />} />
+              </Routes>
+            </AdminLayout>
+          ) : (
+            <Navigate to="/admin/login" replace />
+          )
         } />
 
         {/* Fallback */}
