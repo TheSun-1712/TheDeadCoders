@@ -99,11 +99,11 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         if "latest incidents" in query_lower or "recent attacks" in query_lower:
             incidents = db.query(ManualReview).order_by(ManualReview.timestamp.desc()).limit(5).all()
             if not incidents:
-               chunk = "I couldn't find any recent incidents."
+               chunk = "I couldn't find any recent incidents right now."
                full_response += chunk
                yield chunk
             else:
-                chunk = "Here are the latest incidents:\n"
+                chunk = "Here are the latest incidents I can see:\n"
                 full_response += chunk
                 yield chunk
                 for i in incidents:
@@ -112,7 +112,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
                     yield line
 
         elif "block" in query_lower and "ip" in query_lower:
-             chunk = "To block an IP, please use the 'Review Now' button on the dashboard. I can't execute blocks directly yet, but I can help you analyze the threat."
+             chunk = "I can't execute blocks directly yet. Please use the 'Review Now' button on the dashboard, and I can still help you assess the threat before you decide."
              full_response += chunk
              yield chunk
 
@@ -128,7 +128,10 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
                 - Analyze the provided System Data to answer the query.
                 - If specific country data is shown, use it.
                 - If the user asks about "logs from [Country]", look at the [Specific Query Match] section.
-                - Be concise and professional.
+                - Reply in a natural, human-like SOC analyst tone.
+                - Keep answers concise, clear, and practical.
+                - Avoid robotic phrasing and avoid repeating the same sentence patterns.
+                - If data is missing, say so directly and suggest the next best check.
                 """
                 
                 for chunk in generate_response(full_prompt):

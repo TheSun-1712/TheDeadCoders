@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 import pandas as pd
 import joblib
@@ -11,6 +12,10 @@ import asyncio
 import numpy as np
 from datetime import datetime, timedelta, timezone
 import os
+import secrets
+import base64
+import hmac
+import hashlib
 import threading
 from typing import Optional
 from xgboost import DMatrix
@@ -467,6 +472,88 @@ app.add_middleware(
 )
 
 app.include_router(ai_router)
+
+# --- ADMIN AUTH ---
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_TOKEN_TTL_SECONDS = int(os.getenv("ADMIN_TOKEN_TTL_SECONDS", "28800"))
+ADMIN_AUTH_SECRET = os.getenv("ADMIN_AUTH_SECRET", "sentinel-admin-secret")
+admin_auth_scheme = HTTPBearer(auto_error=False)
+
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(text: str) -> bytes:
+    padding = "=" * (-len(text) % 4)
+    return base64.urlsafe_b64decode(text + padding)
+
+
+def _sign_admin_payload(encoded_payload: str) -> str:
+    digest = hmac.new(
+        ADMIN_AUTH_SECRET.encode("utf-8"),
+        encoded_payload.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return _b64url_encode(digest)
+
+
+def _create_admin_token() -> str:
+    payload = {
+        "sub": ADMIN_USERNAME,
+        "exp": int(time.time()) + ADMIN_TOKEN_TTL_SECONDS,
+        "nonce": secrets.token_urlsafe(8),
+    }
+    encoded_payload = _b64url_encode(
+        json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    )
+    signature = _sign_admin_payload(encoded_payload)
+    return f"{encoded_payload}.{signature}"
+
+
+def _is_admin_token_valid(token: str) -> bool:
+    try:
+        encoded_payload, signature = token.split(".", 1)
+        expected_sig = _sign_admin_payload(encoded_payload)
+        if not hmac.compare_digest(signature, expected_sig):
+            return False
+
+        payload_raw = _b64url_decode(encoded_payload)
+        payload = json.loads(payload_raw.decode("utf-8"))
+        if payload.get("sub") != ADMIN_USERNAME:
+            return False
+        exp = int(payload.get("exp", 0))
+        return exp > int(time.time())
+    except Exception:
+        return False
+
+
+@app.post("/api/auth/admin/login")
+def admin_login(body: AdminLoginRequest):
+    if body.username != ADMIN_USERNAME or body.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+
+    token = _create_admin_token()
+    return {
+        "token": token,
+        "expires_in": ADMIN_TOKEN_TTL_SECONDS,
+        "username": ADMIN_USERNAME,
+    }
+
+
+@app.get("/api/auth/admin/me")
+def admin_me(credentials: Optional[HTTPAuthorizationCredentials] = Depends(admin_auth_scheme)):
+    if not credentials or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Admin authentication required")
+    if not _is_admin_token_valid(credentials.credentials):
+        raise HTTPException(status_code=401, detail="Invalid or expired admin token")
+    return {"authenticated": True, "username": ADMIN_USERNAME}
 
 # === PORTAL A ENDPOINTS (Read-Only / Monitoring) ===
 

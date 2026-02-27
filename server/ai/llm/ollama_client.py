@@ -7,7 +7,7 @@ def generate_response(prompt):
         json={
             "model": "llama3",
             "prompt": prompt,
-            "temperature": 0.1,
+            "temperature": 0.35,
             "stream": True
         },
         stream=True
@@ -17,4 +17,3 @@ def generate_response(prompt):
                 json_response = json.loads(line)
                 if "response" in json_response:
                     yield json_response["response"]
-
