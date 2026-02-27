@@ -7,8 +7,6 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "../../../App.css";
-import { apiClient } from "../../../api/client";
-import type { ThreatMapData } from "../../../types";
 
 /* 🎨 Attack Colors */
 const attackColors = {
@@ -104,15 +102,6 @@ function getBruteForceCount(total: number): number {
 
 function getBotCount(total: number, ddos: number, dos: number, brute: number): number {
   return total - (ddos + dos + brute);
-}
-
-function getAttackType(label: string): AttackType {
-  const value = label.toLowerCase();
-  if (value.includes("ddos")) return "ddos";
-  if (value.includes("dos")) return "dos";
-  if (value.includes("brute") || value.includes("patator")) return "brute";
-  if (value.includes("bot")) return "bot";
-  return "other";
 }
 
 /* 🌀 Generate Curved Path */

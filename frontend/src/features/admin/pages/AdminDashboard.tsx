@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useAdminData } from '../hooks/useAdminData';
-import { AlertTriangle, Clock, ShieldAlert, CheckCircle, XCircle, ArrowRight, Filter } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, CheckCircle, ArrowRight, Filter } from 'lucide-react';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 
 const AdminDashboard = () => {
-    const { pendingIncidents, stats, recentActions, resolveIncident } = useAdminData();
+    const { pendingIncidents, stats, recentActions } = useAdminData();
 
     return (
         <div className="p-6 grid grid-cols-12 gap-6 relative min-h-screen">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../../api/client';
 import type { Packet } from '../../../types';
-import { ShieldAlert, Activity, MapPin, Server, User, ArrowLeft, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, Activity, MapPin, Server, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 const COUNTRY_COORDS: Record<string, [number, number]> = {

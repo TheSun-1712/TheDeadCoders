@@ -18,6 +18,8 @@ import IncidentReview from './features/admin/pages/IncidentReview';
 import PolicyConfig from './features/admin/pages/PolicyConfig';
 import DecisionTimeline from './features/admin/pages/DecisionTimeline';
 import ComplianceReports from './features/admin/pages/ComplianceReports';
+import IncidentsPage from './features/admin/pages/IncidentsPage';
+import SettingsPage from './features/admin/pages/SettingsPage';
 
 function App() {
   return (
@@ -46,10 +48,10 @@ function App() {
             <Routes>
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="incidents/review/:id" element={<IncidentReview />} />
-              <Route path="incidents" element={<IncidentReview />} />
+              <Route path="incidents" element={<IncidentsPage />} />
               <Route path="compliance" element={<ComplianceReports />} />
               <Route path="policy" element={<PolicyConfig />} />
-              <Route path="settings" element={<PolicyConfig />} />
+              <Route path="settings" element={<SettingsPage />} />
               <Route path="timeline" element={<DecisionTimeline />} />
               <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Bot, User, Minimize2, Maximize2, Loader2, RefreshCw } from 'lucide-react';
-import { apiClient } from '../../api/client';
+import { MessageSquare, X, Send, Bot, User, Maximize2, Loader2, RefreshCw } from 'lucide-react';
 import type { ChatMessage } from '../../types';
 import clsx from 'clsx';
 
@@ -37,7 +36,6 @@ const FloatingWidget = () => {
         setIsLoading(true);
 
         // Add a placeholder AI message that we will stream into
-        const aiMsgId = Date.now();
         setMessages(prev => [...prev, {
             role: 'ai',
             content: '',

@@ -6,10 +6,6 @@ import {
     Radar,
     Zap,
     LayoutDashboard,
-    FileText,
-    Settings,
-    Bell,
-    Eye,
 } from "lucide-react";
 
 const LandingPage = () => {

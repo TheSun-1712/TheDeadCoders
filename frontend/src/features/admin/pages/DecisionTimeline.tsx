@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../../api/client';
-import { History, CheckCircle, XCircle, Shield, ArrowRight } from 'lucide-react';
+import { History, CheckCircle, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 
